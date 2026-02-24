@@ -167,20 +167,21 @@
       const el = document.createElement('div');
       el.className = 'session-item';
       el.dataset.id = s.sessionId;
+      const label = s.userIdentifier || `${s.sessionId.slice(0, 8)}&hellip;${s.sessionId.slice(-4)}`;
       el.innerHTML = `
-        <div class="session-id">${s.sessionId.slice(0, 8)}&hellip;${s.sessionId.slice(-4)}</div>
+        <div class="session-id">${label}</div>
         <div class="session-meta">${s.messageCount} messages &middot; ${s.lastActivity}</div>
       `;
       el.addEventListener('click', () => {
         document.querySelectorAll('.session-item').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
-        loadTranscript(s.sessionId, s.messageCount);
+        loadTranscript(s.sessionId, s.messageCount, s.userIdentifier);
       });
       list.appendChild(el);
     });
   }
 
-  async function loadTranscript(sessionId, messageCount) {
+  async function loadTranscript(sessionId, messageCount, userIdentifier) {
     const panel = document.getElementById('transcript');
     panel.innerHTML = '<div style="padding:20px;font-size:13px;color:#999">Loading…</div>';
 
@@ -189,9 +190,13 @@
 
     const visible = messages.filter(m => m.content !== '__START__');
 
+    const headerLabel = userIdentifier
+      ? `${escapeHtml(userIdentifier)} &nbsp;·&nbsp; ${sessionId}`
+      : sessionId;
+
     panel.innerHTML = `
       <div id="transcript-header">
-        ${sessionId} &nbsp;·&nbsp; ${messageCount} messages
+        ${headerLabel} &nbsp;·&nbsp; ${messageCount} messages
       </div>
       <div id="messages">
         ${visible.map(m => `

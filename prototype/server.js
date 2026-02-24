@@ -171,17 +171,19 @@ app.post('/chat', async (req, res) => {
 
 // GET /admin/sessions — summarize all logged sessions from Supabase
 app.get('/admin/sessions', async (_req, res) => {
-  const { data, error } = await supabase
-    .from('conversation_logs')
-    .select('session_id, id, timestamp_display')
-    .order('id', { ascending: true });
+  const [logsResult, usersResult] = await Promise.all([
+    supabase.from('conversation_logs').select('session_id, id, timestamp_display').order('id', { ascending: true }),
+    supabase.from('users').select('session_id, user_identifier'),
+  ]);
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
+  if (logsResult.error) return res.status(500).json({ error: logsResult.error.message });
+  if (usersResult.error) return res.status(500).json({ error: usersResult.error.message });
+
+  // Map session_id → user_identifier for quick lookup
+  const userMap = new Map(usersResult.data.map(u => [u.session_id, u.user_identifier]));
 
   const sessionMap = new Map();
-  for (const row of data) {
+  for (const row of logsResult.data) {
     const { session_id, id, timestamp_display } = row;
     if (!sessionMap.has(session_id)) {
       sessionMap.set(session_id, { sessionId: session_id, messageCount: 0, lastId: id, lastActivity: timestamp_display });
@@ -198,6 +200,7 @@ app.get('/admin/sessions', async (_req, res) => {
     .sort((a, b) => b.lastId - a.lastId)
     .map(({ sessionId, messageCount, lastActivity }) => ({
       sessionId,
+      userIdentifier: userMap.get(sessionId) || null,
       messageCount,
       lastActivity,
     })));
