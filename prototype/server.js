@@ -218,7 +218,14 @@ app.get('/admin/transcript/:sessionId', async (req, res) => {
   res.json(data);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Goal discovery prototype running at http://localhost:${PORT}`);
-});
+// Export the app for Vercel's serverless runtime.
+// Vercel imports this module and handles HTTP — app.listen() is not called there.
+export default app;
+
+// Local development only — Vercel sets VERCEL=1 in its environment.
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Goal discovery prototype running at http://localhost:${PORT}`);
+  });
+}

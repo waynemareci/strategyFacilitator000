@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "prototype/server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "prototype/index.html",
+          "prototype/admin.html",
+          "prompts/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "prototype/server.js"
+    }
+  ]
+}
