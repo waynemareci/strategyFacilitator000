@@ -173,7 +173,7 @@ app.post('/chat', async (req, res) => {
 // GET /admin/sessions — summarize all logged sessions from Supabase
 app.get('/admin/sessions', async (_req, res) => {
   const [logsResult, usersResult] = await Promise.all([
-    supabase.from('conversation_logs').select('session_id, id, timestamp_display').order('id', { ascending: true }),
+    supabase.from('conversation_logs').select('session_id, id, timestamp_display').neq('content', '__START__').order('id', { ascending: true }),
     supabase.from('users').select('session_id, user_identifier'),
   ]);
 

@@ -138,10 +138,15 @@
       );
 
       const messagesEndRef = useRef(null);
+      const inputRef = useRef(null);
 
       useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, [messages, loading]);
+
+      useEffect(() => {
+        if (!loading) inputRef.current?.focus();
+      }, [loading]);
 
       // On mount: load welcome text and initialise the conversation.
       useEffect(() => {
@@ -307,6 +312,7 @@
 
           <footer>
             <textarea
+              ref={inputRef}
               rows="2"
               value={input}
               onChange={e => setInput(e.target.value)}
