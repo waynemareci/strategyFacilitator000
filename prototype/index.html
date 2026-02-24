@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strategy Facilitator</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: white;
+      padding: 16px 20px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    h1 { font-size: 20px; font-weight: 600; }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      max-width: 600px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: #007bff;
+      color: white;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: white;
+      border: 1px solid #ddd;
+      white-space: pre-wrap;
+    }
+
+    .typing {
+      align-self: flex-start;
+      padding: 12px 16px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      color: #666;
+    }
+
+    footer {
+      background: white;
+      padding: 16px 20px;
+      border-top: 1px solid #ddd;
+      display: flex;
+      gap: 8px;
+    }
+
+    textarea {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) { background: #0056b3; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const BASE = window.location.origin;
+
+    // Converts a caught fetch error into a user-facing message.
+    // "Failed to fetch" (and similar) means the server wasn't reachable — give a
+    // friendlier prompt than a raw browser error string.
+    function friendlyError(err) {
+      if (err instanceof TypeError || err.message === 'Failed to fetch') {
+        return 'Could not reach the server — please wait a moment and try again.';
+      }
+      return err.message || 'Sorry, something went wrong. Please try again.';
+    }
+
+    function App() {
+      const [messages, setMessages] = useState([]);
+      const [input, setInput] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const [sessionId] = useState(() => {
+        let id = localStorage.getItem('goalapp_session_id');
+        if (!id) {
+          id = crypto.randomUUID();
+          localStorage.setItem('goalapp_session_id', id);
+        }
+        return id;
+      });
+
+      // userIdentifier: e.g. "Sarah0001". Null until name is registered.
+      const [userIdentifier, setUserIdentifier] = useState(
+        () => localStorage.getItem('goalapp_user_identifier') || null
+      );
+
+      // awaitingName: true until the user submits their name for the first time.
+      const [awaitingName, setAwaitingName] = useState(
+        () => !localStorage.getItem('goalapp_user_identifier')
+      );
+
+      const messagesEndRef = useRef(null);
+
+      useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages, loading]);
+
+      // On mount: load welcome text and initialise the conversation.
+      useEffect(() => {
+        const init = async () => {
+          let welcomeText = 'Welcome! What would you like to work on?';
+          try {
+            const r = await fetch(`${BASE}/welcome`);
+            const d = await r.json();
+            welcomeText = d.message;
+          } catch (err) {
+            console.error('Failed to load welcome message:', err);
+          }
+
+          // Read localStorage directly — state may not reflect latest yet.
+          const existingId = localStorage.getItem('goalapp_user_identifier');
+
+          if (!existingId) {
+            // New user — show welcome message (which asks for their name).
+            setMessages([{ role: 'assistant', content: welcomeText, uiOnly: true }]);
+          } else {
+            // Returning user — greet by name and start the conversation.
+            const firstName = existingId.replace(/\d+$/, '');
+            setMessages([{
+              role: 'assistant',
+              content: `Welcome back, ${firstName}! Let's pick up where we left off.`,
+              uiOnly: true,
+            }]);
+            await startConversation(existingId);
+          }
+        };
+
+        init();
+      }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+      // Send __START__ to Claude and append its opening message.
+      // Always called with the local `identifier` variable (not state) to avoid
+      // stale closure issues immediately after setUserIdentifier().
+      const startConversation = async (identifier) => {
+        setMessages(prev => [...prev, { role: 'user', content: '__START__', hidden: true }]);
+        setLoading(true);
+        try {
+          const res = await fetch(`${BASE}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId,
+              messages: [{ role: 'user', content: '__START__' }],
+              userIdentifier: identifier,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+        } catch (err) {
+          console.error('Start conversation error:', err);
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: 'Sorry, something went wrong. Please refresh and try again.',
+          }]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const sendMessage = async (text) => {
+        if (!text.trim() || loading) return;
+        setInput('');
+
+        if (awaitingName) {
+          // ── Name registration flow ──────────────────────────────────────
+          setLoading(true);
+          setMessages(prev => [...prev, { role: 'user', content: text, uiOnly: true }]);
+
+          let identifier;
+          try {
+            const res = await fetch(`${BASE}/register-name`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId, rawInput: text }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+            identifier = data.userIdentifier;
+            const firstName = identifier.replace(/\d+$/, '');
+
+            localStorage.setItem('goalapp_user_identifier', identifier);
+            setUserIdentifier(identifier);
+            setAwaitingName(false);
+            setLoading(false);
+          } catch (err) {
+            console.error(err);
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: friendlyError(err),
+            }]);
+            setLoading(false);
+            return;
+          }
+
+          // Registration succeeded — trigger Claude's opening question.
+          // Pass `identifier` (local var) not `userIdentifier` (state, still null here).
+          await startConversation(identifier);
+
+        } else {
+          // ── Normal chat turn ────────────────────────────────────────────
+          // Build history from current messages snapshot BEFORE adding the new one.
+          // Messages flagged uiOnly are shown in the UI but never sent to Claude.
+          // Messages flagged hidden are sent to Claude but not shown in the UI.
+          const historyToSend = [
+            ...messages
+              .filter(m => !m.uiOnly)
+              .map(({ role, content }) => ({ role, content })),
+            { role: 'user', content: text },
+          ];
+
+          setMessages(prev => [...prev, { role: 'user', content: text }]);
+          setLoading(true);
+
+          try {
+            const res = await fetch(`${BASE}/chat`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId, messages: historyToSend, userIdentifier }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+          } catch (err) {
+            console.error(err);
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: friendlyError(err),
+            }]);
+          } finally {
+            setLoading(false);
+          }
+        }
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage(input);
+        }
+      };
+
+      return (
+        <>
+          <header>
+            <h1>Strategy Facilitator</h1>
+          </header>
+
+          <div id="messages">
+            {messages.filter(m => !m.hidden).map((msg, i) => (
+              <div key={i} className={`message ${msg.role}`}>
+                {msg.content}
+              </div>
+            ))}
+            {loading && <div className="typing">Thinking...</div>}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <footer>
+            <textarea
+              rows="2"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={awaitingName ? 'Enter your name...' : 'Type your message...'}
+              disabled={loading}
+            />
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={loading || !input.trim()}
+            >
+              Send
+            </button>
+          </footer>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

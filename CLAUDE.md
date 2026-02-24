@@ -1,0 +1,284 @@
+# Goal Achievement App — Project Brief
+
+## Vision
+An AI-powered goal achievement platform that helps users discover their true, most 
+important goals (which may not be immediately obvious even to themselves), commit to 
+actionable steps, and adaptively track progress with compassionate accountability.
+
+The application is anonymous-first: users are more willing to take risks, be honest, 
+and face failures when human judgment is eliminated from the equation.
+
+---
+
+## Three Core Components
+
+### 1. Goal Discovery (The Questionnaire)
+An interactive, multi-turn LLM-powered conversation that surfaces latent goals — the 
+ones beneath the surface of what users initially say they want.
+
+- Moderate psychological depth: adult life issues (career, relationships, health, 
+  finances, purpose) but not deep psychoanalysis or therapy
+- Socratic in approach: follow-up questions probe the "why" behind stated goals
+- Misalignment detection: if a user's answers across the conversation contradict each 
+  other, the system challenges them explicitly rather than accepting surface responses
+- The conversation should feel like talking to a thoughtful, curious, non-judgmental 
+  friend — not a therapist, not a life coach selling something
+- Concludes with a structured summary of agreed-upon goals, confirmed with the user 
+  before moving to action planning
+- The LLM is expected to do the heavy lifting of determining when goals are 
+  sufficiently surfaced vs. when to probe deeper
+
+### 2. Action Planning
+Given confirmed goals, the system generates granular, concrete actions required to 
+achieve them.
+
+- Tasks should be specific enough to be unambiguous (not "exercise more" but 
+  "walk for 20 minutes after dinner on Monday, Wednesday, Friday")
+- Flexible deadlines: timing adapts to user effort and pace rather than rigid 
+  calendar targets
+- Multiple parallel action tracks may exist for different goals simultaneously
+- User is presented with AI-suggested tasks and commits to them (with autonomy to 
+  adjust)
+- Task decomposition quality is a core differentiator — this must be excellent
+
+### 3. Adaptive Execution Loop
+An iterative progress tracking and feedback system that adjusts over time.
+
+- Users check in regularly (daily or weekly, flexible based on preference)
+- Check-ins are text-based: user reports what happened, system interprets success 
+  or failure
+- System is encouraging but does not shy away from calling out failures to execute
+- Adaptive difficulty:
+  - >80% task completion rate → increase difficulty and ambition of next tasks
+  - 40–80% completion rate → maintain current difficulty level
+  - <40% completion rate → simplify tasks, focus on smaller wins
+- If a user repeatedly fails at tasks associated with a specific goal, the system 
+  raises the question of whether the goal should be abandoned or reframed
+- No human coaching in MVP — purely AI-driven
+
+---
+
+## Key Design Principles
+
+**Anonymity First**
+No social accountability features in MVP. Users do not share progress with others. 
+The entire experience is private. This reduces fear of judgment and increases 
+willingness to set ambitious or unconventional goals and to honestly report failures.
+
+**Compassionate Accountability**
+The system is honest about failures — it does not let users rationalize or ignore 
+missed commitments — but delivers this honesty with encouragement, not shame. Tone 
+should never feel punitive.
+
+**Goal Pivoting**
+The system must know when to suggest stopping. Repeated failure on a specific goal 
+is a signal, not just noise. The system should surface this pattern and offer the 
+user a structured conversation about abandoning, reframing, or scaling back the goal.
+
+**Autonomy**
+Users choose from AI-suggested tasks rather than having tasks prescribed. The system 
+recommends, the user commits. This increases ownership and follow-through.
+
+---
+
+## Market & Business Context
+
+### Target Markets
+- **B2C**: Individuals seeking self-improvement, goal clarity, and structured 
+  accountability without the cost or vulnerability of human coaching
+- **B2B**: 
+  - Employee development (L&D departments)
+  - Wellness benefits programs (HR)
+  - Performance coaching for teams (sales, leadership)
+  - White-label licensing to coaches and consultants
+
+### Monetization (MVP)
+- **Free tier**: 1 active goal, limited check-ins, basic task generation
+- **Paid tier**: $15–20/month
+  - Unlimited goals
+  - Daily AI coaching interactions
+  - Full adaptive difficulty system
+  - Progress analytics
+- **B2B**: $50–100/user/year, sold in packs of 10+ users
+
+### Competitive Landscape (Research in Progress)
+Apps to analyze: Coachello, Akido, GoalsWon, Mentor AI, Noa Coach, Habitica, 
+Rosebud, Reflectly, Woebot, Wysa, Lattice, 15Five
+
+Key differentiators to validate:
+- Anonymity-first design
+- Deep goal discovery (not surface-level task management)
+- Adaptive difficulty
+- Psychological sophistication without crossing into therapy
+
+---
+
+## Tech Stack
+
+### MVP Stack
+- **Frontend**: React (Next.js preferred for routing and API routes)
+- **Backend**: Node.js / Express (or Next.js API routes)
+- **Database**: PostgreSQL (chosen over Neo4j for MVP speed; Neo4j reconsidered 
+  post-MVP when relationship complexity justifies it)
+- **LLM**: Anthropic Claude API (primary), OpenAI as fallback consideration
+- **Auth**: Anonymous sessions for MVP (no login required initially)
+- **Hosting**: TBD (Vercel for frontend, Railway or Render for backend/DB)
+- **Analytics**: Mixpanel or Amplitude (post-MVP)
+
+### Database Schema (Initial Thinking)
+Core entities:
+- **Users** (anonymized session-based profiles)
+- **Goals** (hierarchical: meta-goals → sub-goals, with status tracking)
+- **Tasks** (states: pending, in-progress, completed, failed, abandoned)
+- **CheckIns** (timestamped self-reports tied to tasks)
+- **ConversationHistory** (stored for LLM context in future sessions)
+- **MisalignmentFlags** (logged when system challenges user's stated goal)
+
+### LLM Integration Approach
+- Anthropic Claude API via `@anthropic-ai/sdk`
+- Multi-turn conversation with full history passed on each request
+- Structured JSON outputs for goal summaries and task generation
+- Separate system prompts for each mode: discovery, planning, check-in, 
+  pivot conversation
+- API key via environment variable: `ANTHROPIC_API_KEY`
+
+---
+
+## Project Phases
+
+### Phase 0.0 — Complete: Throwaway Prototype (Local)
+**Goal**: Test whether the LLM can reliably conduct goal discovery conversations 
+that surface meaningful, non-obvious goals.
+
+This prototype is intentionally disposable. No production code. No scalability. 
+The only output that matters is knowledge about what works in the conversation flow.
+
+What to build:
+- Minimal Express server with one POST `/chat` endpoint
+- In-memory conversation history (no database)
+- Single-page chat UI (React via CDN, no build tools)
+- `/prompts` folder with versioned system prompt files
+- `/notes` folder for documenting what works and what doesn't
+
+What to learn:
+- Does the AI ask interesting, probing follow-up questions or stay surface-level?
+- Does it catch misalignment between different user responses?
+- How many turns does it take to reach something meaningful?
+- What prompt strategies produce the best goal summaries?
+- Does the conversation feel natural or robotic?
+
+### Phase 0.1 — Current: Throwaway Prototype (Vercel)
+**Goal**: Make prototype available to friends and family on the Internet to determine viability of project.
+
+This prototype is intentionally disposable. No production code. No scalability. 
+The only output that matters is knowledge about what works in the conversation flow.
+
+What to build:
+- Vercel deployment with Supabase database and minimal UI
+
+What to learn:
+- Do others find the goal-determining process useful?
+
+### Phase 1 — MVP (Months 1–3)
+Full application with goal discovery, task generation, check-in system, and 
+adaptive feedback. Web-only. Anonymous sessions. No social features.
+
+### Phase 2 — Post-MVP
+- User accounts and persistent history
+- Mobile-responsive polish / potential React Native app
+- B2B admin panel and team features
+- Human coaching integration (TBD)
+- Community/accountability features (TBD)
+- Neo4j integration for relationship-based goal pattern analysis
+- ML-enhanced adaptive difficulty (replacing rules-based system)
+
+---
+
+## Current Development Status
+
+**Active task**: Deploying Phase 0.1 prototype to Vercel for external tester access
+
+**Completed (Phase 0.1 — Feb 22–23 2026)**:
+- Session identity: UUID generated on first visit, stored in `localStorage` under
+  `goalapp_session_id`, sent with every `/chat` request. Server is fully stateless.
+- Conversation logging: full turn-by-turn logging to Supabase (`conversation_logs`
+  table). Timestamps formatted as "Sun Feb 22 9:12:00 AM EST".
+- Admin transcript viewer: `admin.html` — two-panel UI showing session list (left)
+  and full conversation transcript (right), sourced from Supabase via
+  `GET /admin/sessions` and `GET /admin/transcript/:sessionId`.
+- User identity and name collection:
+  - `prompts/welcome.txt` — source of truth for the welcome/intro message, loaded
+    at server startup. Developer warning header stripped before serving. Server exits
+    if file is missing.
+  - `GET /welcome` endpoint — serves the welcome message to the UI (never hardcoded
+    in HTML).
+  - `POST /register-name` endpoint — accepts `{sessionId, name}`, calls Supabase RPC
+    `increment_user_counter()` atomically to assign a sequential number, formats
+    identifier as `Name####` (e.g. `Sarah0001`), stores in `users` table.
+  - User identifier stored in `localStorage` under `goalapp_user_identifier` and
+    passed to `/chat` on every request.
+  - System prompt personalized with first name on each `/chat` call.
+  - Returning users (identifier in localStorage) see "Welcome back" on reload and
+    skip the name prompt.
+- AI persona: assistant presents itself as "Stef" (per welcome text).
+- App title changed from "Goal Discovery" to "Strategy Facilitator".
+
+**Supabase tables in use**:
+- `conversation_logs` — all chat turns (session_id, role, content, timestamp_display)
+- `users` — registered user identifiers (user_identifier, display_name, session_id)
+- `user_id_counter` — single-row atomic counter for sequential user numbering
+- RLS disabled on all three tables; anon role granted appropriate permissions
+
+**Next steps**:
+- Deploy to Vercel
+- Share URL with testers
+- Review conversations via admin.html
+- Iterate on system prompt based on conversation quality
+
+---
+
+## Folder Structure (Actual)
+
+Strategy Facilitator/
+├── CLAUDE.md                  # This file — persistent project context
+├── /prototype                 # Phase 0 throwaway code
+│   ├── server.js              # Express server, Claude API, Supabase logging
+│   ├── index.html             # Single-page chat UI (React via CDN)
+│   ├── admin.html             # Transcript viewer for developer review
+│   ├── package.json
+│   └── .env                   # API keys (gitignored)
+├── /prompts                   # System prompt files
+│   ├── system-prompt-v1.txt   # Goal discovery system prompt
+│   └── welcome.txt            # Welcome/intro message (source of truth)
+├── /notes                     # Research and design decisions (to be populated)
+└── /app                       # Phase 1 MVP (not started)
+
+---
+
+## Developer Context
+
+- Solo developer initially, with plans to bring on collaborators as the product matures
+- Strong background in React, Node.js, Neo4j, MongoDB, PostgreSQL
+- Experience with Anthropic Claude API and LLM integration
+- Existing project: Personal Finance Dashboard (credit card optimization, Plaid 
+  integration) — separate codebase, potential future integration point for 
+  financial goal tracking
+- Currently studying for Series 65 exam (investment advisory) — B2B angle in 
+  financial wellness space worth exploring
+- Development environment: Windows 11, VSCode, WSL
+
+---
+
+## Open Questions (To Resolve During Development)
+
+- Should the goal discovery conversation have a defined maximum number of turns, 
+  or should the LLM determine when to conclude?
+- How should conversation context be managed across multiple sessions once 
+  persistent storage is added?
+- What is the right level of task granularity — who decides, user or system?
+- At what failure threshold exactly should the system raise a goal pivot conversation?
+- Should check-in frequency be user-defined, system-recommended, or adaptive?
+- How do we handle goals that require external data (fitness, finance) vs. 
+  purely self-reported progress?
+- Human coaching integration: marketplace model, referral model, or in-house?
+- B2B go-to-market: direct sales, partnerships, or product-led growth?

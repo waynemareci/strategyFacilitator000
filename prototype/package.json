@@ -1,0 +1,18 @@
+{
+  "name": "goal-discovery-prototype",
+  "version": "0.1.0",
+  "description": "Throwaway prototype for testing goal discovery conversations",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.37.0",
+    "@supabase/supabase-js": "^2.97.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2"
+  }
+}
