@@ -26,6 +26,7 @@ function formatTimestamp(date = new Date()) {
     weekday: 'short', month: 'short', day: 'numeric',
     hour: 'numeric', minute: '2-digit', second: '2-digit',
     hour12: true, timeZoneName: 'short',
+    timeZone: 'America/New_York',
   }).formatToParts(date);
   const get = (type) => parts.find(p => p.type === type)?.value ?? '';
   return `${get('weekday')} ${get('month')} ${get('day')} ${get('hour')}:${get('minute')}:${get('second')} ${get('dayPeriod')} ${get('timeZoneName')}`;
