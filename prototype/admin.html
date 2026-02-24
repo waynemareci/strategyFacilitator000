@@ -202,7 +202,9 @@
         ${visible.map(m => `
           <div class="msg-row ${m.role}">
             <div class="bubble">${escapeHtml(m.content)}</div>
-            <div class="msg-time">${m.timestamp_display ?? ''}</div>
+            <div class="msg-time">
+              ${m.timestamp_display ?? ''}${m.input_tokens != null ? ` &nbsp;·&nbsp; ${m.input_tokens} in / ${m.output_tokens} out` : ''}
+            </div>
           </div>
         `).join('')}
       </div>

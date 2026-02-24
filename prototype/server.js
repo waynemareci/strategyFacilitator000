@@ -150,12 +150,13 @@ app.post('/chat', async (req, res) => {
     });
 
     const reply = response.content[0].text;
+    const { input_tokens, output_tokens } = response.usage;
 
     // Log to Supabase — fire and forget
     const ts = formatTimestamp();
     supabase.from('conversation_logs').insert([
       { session_id: sessionId, role: 'user',      content: userMessage, timestamp_display: ts },
-      { session_id: sessionId, role: 'assistant', content: reply,       timestamp_display: ts },
+      { session_id: sessionId, role: 'assistant', content: reply,       timestamp_display: ts, input_tokens, output_tokens },
     ]).then(({ error }) => {
       if (error) console.error('Supabase log error:', error.message);
     });
@@ -213,7 +214,7 @@ app.get('/admin/transcript/:sessionId', async (req, res) => {
 
   const { data, error } = await supabase
     .from('conversation_logs')
-    .select('id, role, content, timestamp_display')
+    .select('id, role, content, timestamp_display, input_tokens, output_tokens')
     .eq('session_id', sessionId)
     .order('id', { ascending: true });
 
