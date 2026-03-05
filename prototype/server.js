@@ -9,9 +9,34 @@ import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const MOCK_MODE = process.env.MOCK_MODE === 'true';
+
+if (MOCK_MODE) {
+  console.log('⚠️  MOCK MODE ENABLED — No Anthropic API calls will be made');
+}
+
+const MOCK_RESPONSES = [
+  "That's really interesting — can you tell me more about what draws you to that?",
+  "I hear you. When you imagine actually having that, what does your life look like differently?",
+  "You've mentioned that a few times now. What do you think is underneath that for you?",
+  "That's a honest answer. How long have you been feeling this way?",
+  "I want to make sure I understand — what would it cost you if nothing changed in the next year?",
+  "What have you already tried, even in a small way?",
+  "That's a really common feeling. What do you think has been holding you back from acting on it?",
+  "Interesting. Earlier you mentioned something slightly different — do you see those two things as connected?",
+  "If you could only change one thing starting tomorrow, what would it be?",
+  "Based on everything we've talked about, I think I'm starting to see a picture forming. Does this feel like the real thing, or is there something deeper underneath it?",
+];
+
+function getMockReply(messageCount) {
+  // Cycle through responses based on turn count for predictable testing
+  return MOCK_RESPONSES[messageCount % MOCK_RESPONSES.length];
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.get('/sw.js', (_req, res) => res.sendFile(join(__dirname, 'sw.js')));
 app.use(express.static(__dirname));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -82,6 +107,34 @@ app.post('/register-name', async (req, res) => {
     return res.status(400).json({ error: 'rawInput is required' });
   }
 
+  if (MOCK_MODE) {
+    // Extract first word as a simple name approximation
+    const mockName = rawInput.trim().split(/\s+/)[0];
+    const displayName = mockName.charAt(0).toUpperCase() + mockName.slice(1).toLowerCase();
+    const firstName = displayName;
+
+    try {
+      const { data: counterData, error: counterError } = await supabase.rpc('increment_user_counter');
+      if (counterError) throw counterError;
+
+      const paddedNum = String(counterData).padStart(4, '0');
+      const userIdentifier = `${firstName}${paddedNum}`;
+
+      const { error: insertError } = await supabase.from('users').insert([{
+        user_identifier: userIdentifier,
+        display_name: displayName,
+        session_id: sessionId,
+      }]);
+      if (insertError) throw insertError;
+
+      console.log(`[MOCK][Register] ${userIdentifier} (session ${sessionId})`);
+      return res.json({ userIdentifier });
+    } catch (err) {
+      console.error('Mock register-name error:', err.message);
+      return res.status(500).json({ error: 'Failed to register name (mock)' });
+    }
+  }
+
   let displayName;
   try {
     const extracted = await extractName(rawInput.trim());
@@ -133,6 +186,27 @@ app.post('/chat', async (req, res) => {
   }
 
   const userMessage = messages[messages.length - 1].content;
+
+  if (MOCK_MODE) {
+    const reply = getMockReply(messages.length);
+    const ts = formatTimestamp();
+
+    // Still log to Supabase in mock mode so session/transcript UI can be tested
+    supabase.from('conversation_logs').insert([
+      { session_id: sessionId, role: 'user',      content: userMessage, timestamp_display: ts },
+      { session_id: sessionId, role: 'assistant', content: reply,       timestamp_display: ts, input_tokens: 0, output_tokens: 0 },
+    ]).then(({ error }) => {
+      if (error) console.error('Supabase log error (mock):', error.message);
+    });
+
+    const label = userIdentifier ?? sessionId;
+    console.log(`[MOCK][${label}] Turn ${Math.ceil(messages.length / 2)}: "${reply.slice(0, 60)}…"`);
+
+    // Simulate realistic API latency so loading states can be tested
+    await new Promise(r => setTimeout(r, 700));
+
+    return res.json({ reply });
+  }
 
   // Personalize system prompt with first name if available
   let activePrompt = systemPrompt;
