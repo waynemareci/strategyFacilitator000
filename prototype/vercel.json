@@ -1,15 +1,6 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    { "src": "/icons/(.*)", "dest": "/public/icons/$1" },
-    { "src": "/manifest.json", "dest": "/public/manifest.json" },
-    { "src": "/sw.js", "dest": "/sw.js" },
-    { "src": "/(.*)", "dest": "/server.js" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/server.js" }
   ]
 }
