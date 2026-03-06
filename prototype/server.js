@@ -36,8 +36,8 @@ function getMockReply(messageCount) {
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.get('/sw.js', (_req, res) => res.sendFile(join(__dirname, '../sw.js')));
-app.use(express.static(join(__dirname,'../public')));
+app.get('/sw.js', (_req, res) => res.sendFile(join(__dirname, 'sw.js')));
+app.use(express.static(__dirname));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 

@@ -8,18 +8,15 @@
         "includeFiles": [
           "prototype/index.html",
           "prototype/admin.html",
-          "prototype/manifest.json",
-          "prototype/sw.js",
-          "prototype/public/icons/**",
           "prompts/**"
         ]
       }
     }
   ],
   "routes": [
-    { "src": "/manifest.json", "dest": "prototype/manifest.json" },
-    { "src": "/sw.js", "dest": "prototype/server.js" },
-    { "src": "/icons/(.*)", "dest": "prototype/public/icons/$1" },
-    { "src": "/(.*)", "dest": "prototype/server.js" }
+    {
+      "src": "/(.*)",
+      "dest": "prototype/server.js"
+    }
   ]
 }
