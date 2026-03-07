@@ -1,6 +1,6 @@
 {
   "name": "My Success Story",
-  "short_name": "Success",
+  "short_name": "My Success Story",
   "description": "A private space to think seriously about what you want and how to get there.",
   "start_url": "/",
   "display": "standalone",
