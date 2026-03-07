@@ -188,6 +188,14 @@
       .mic-receiving {
         animation: receive-pulse 1.5s ease-in-out infinite;
       }
+
+      @keyframes overlay-pulse {
+        0%, 100% { opacity: 0.5; }
+        50%       { opacity: 1; }
+      }
+      .overlay-hint {
+        animation: overlay-pulse 2.2s ease-in-out infinite;
+      }
     </style>
   </head>
   <body>
@@ -773,7 +781,7 @@
               <div ref={messagesEndRef} />
             </div>
 
-            {speechSupported && !voiceStarted && (
+            {!voiceStarted && (
               <div
                 onClick={() => {
                   if (window.speechSynthesis) {
@@ -783,21 +791,35 @@
                     window.speechSynthesis.speak(u);
                   }
                   setVoiceStarted(true);
-                  startReceiveMode();
+                  if (speechSupported) startReceiveMode();
                 }}
                 style={{
+                  position: "fixed", inset: 0, zIndex: 50,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  gap: "8px", padding: "10px 20px",
-                  background: "#6c3fc5", color: "white",
-                  fontSize: "14px", fontWeight: 500, cursor: "pointer",
+                  background: "#0d0d1a",
+                  cursor: "pointer",
                   userSelect: "none",
                 }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-                  <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
-                  <path d="M19 11a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V20H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2h-2v-2.08A7 7 0 0 0 19 11z"/>
-                </svg>
-                Tap to start voice conversation
+                <div style={{ textAlign: "center", padding: "0 32px" }}>
+                  <h1 style={{
+                    fontSize: "clamp(26px, 6vw, 38px)",
+                    fontWeight: 700,
+                    color: "white",
+                    marginBottom: "20px",
+                    letterSpacing: "-0.5px",
+                  }}>
+                    My Success Story
+                  </h1>
+                  <p className="overlay-hint" style={{
+                    fontSize: "16px",
+                    fontWeight: 400,
+                    color: "rgba(255,255,255,0.7)",
+                    margin: 0,
+                  }}>
+                    Tap to begin your session
+                  </p>
+                </div>
               </div>
             )}
             {(receiveMode && !loading && !isSpeaking) && (

@@ -331,6 +331,13 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
   - Empty utterance queue-blocking: earlier unlock attempts used
     `SpeechSynthesisUtterance('')` which can get permanently stuck in Chrome's queue.
     Replaced with `SpeechSynthesisUtterance('a')` with rate=10 (processes in ~50ms).
+- **Step 5a — Tap-to-start overlay**: Full-screen `position:fixed` overlay on first load.
+  Background `#0d0d1a` (matches manifest theme). Shows app name "My Success Story" and
+  pulsing "Tap to begin your session" subtitle (`overlay-hint` CSS class). Tap anywhere
+  dismisses, calls `startReceiveMode()` (if speechSupported), unlocks TTS via silent
+  `'a'` utterance. Unsupported browsers: tap dismisses, normal text chat revealed.
+  Controlled by `voiceStarted` state — never reappears within a session. Shown on both
+  desktop and mobile for consistency; satisfies Android Chrome user-gesture requirement.
 
 **Supabase tables in use**:
 - `conversation_logs` — all chat turns (session_id, role, content,
