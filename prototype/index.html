@@ -279,6 +279,14 @@
         const messagesEndRef = useRef(null);
         const inputRef = useRef(null);
 
+        // DEBUG — temporary diagnostic state
+        const [debugLog, setDebugLog] = useState([]); // DEBUG
+        const [debugOpen, setDebugOpen] = useState(false); // DEBUG
+        const dbg = (msg) => { // DEBUG
+          const ts = new Date().toTimeString().slice(0, 8); // DEBUG
+          setDebugLog(prev => [`${ts} ${msg}`, ...prev].slice(0, 20)); // DEBUG
+        }; // DEBUG
+
         useEffect(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, [messages, loading]);
@@ -299,6 +307,7 @@
         // On mount: load welcome text and initialise the conversation.
         useEffect(() => {
           const init = async () => {
+            dbg(`App mounted, SR:${!!(window.SpeechRecognition||window.webkitSpeechRecognition)} SS:${!!window.speechSynthesis}`); // DEBUG
             let welcomeText = "Welcome! What would you like to work on?";
             try {
               const r = await fetch(`${BASE}/welcome`);
@@ -380,6 +389,7 @@
 
         const sendMessage = async (text) => {
           if (!text.trim() || loading) return;
+          dbg(`handleSend called: ${text.slice(0, 30)}`); // DEBUG
           setInput("");
 
           // Capture voice mode for this turn, then reset it
@@ -455,6 +465,7 @@
               });
               const data = await res.json();
               if (!res.ok) throw new Error(data.error);
+              dbg(`Response received, voiceMode:${wasVoiceMode} synth:${synthSupported} len:${data.reply.length}`); // DEBUG
               if (wasVoiceMode && synthSupported) {
                 const msgId = Date.now();
                 setMessages((prev) => [
@@ -469,6 +480,7 @@
                 ]);
               }
             } catch (err) {
+              dbg(`ERROR: ${err.message}`); // DEBUG
               console.error(err);
               setMessages((prev) => [
                 ...prev,
@@ -540,6 +552,7 @@
           if (!SR) return;
           if (receiveModeRef.current) return;
 
+          dbg('startReceiveMode called'); // DEBUG
           receiveModeRef.current = true;
           setReceiveMode(true);
           accumulatedTranscriptRef.current = '';
@@ -552,12 +565,14 @@
 
           recognition.onresult = (event) => {
             const transcript = event.results[event.results.length - 1][0].transcript;
+            dbg(`Result received: ${transcript.slice(0, 30)}`); // DEBUG
             accumulatedTranscriptRef.current += (accumulatedTranscriptRef.current ? ' ' : '') + transcript;
             setInput(accumulatedTranscriptRef.current);
 
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
               if (receiveModeRef.current && accumulatedTranscriptRef.current.trim()) {
+                dbg(`Silence timer fired: ${accumulatedTranscriptRef.current.slice(0, 30)}`); // DEBUG
                 voiceModeRef.current = true;
                 setVoiceMode(true);
                 handsFreeRef.current = true;
@@ -576,12 +591,14 @@
           };
 
           recognition.onerror = (err) => {
+            dbg(`SR onerror: ${err.error}`); // DEBUG
             if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
               receiveModeRef.current = false;
               setReceiveMode(false);
             }
           };
 
+          dbg('Recognition started'); // DEBUG
           recognition.start();
         };
 
@@ -613,6 +630,7 @@
 
             utt.onstart = () => {
               if (activeSpeechIdRef.current !== speechId) return;
+              dbg(`SS onstart fired [s${i}]`); // DEBUG
               builtText += (builtText ? " " : "") + sentence;
               setMessages((prev) =>
                 prev.map((m) =>
@@ -646,13 +664,17 @@
                   )
                 );
                 if (handsFreeRef.current) {
+                  dbg(`SS onend last sentence, resuming receive`); // DEBUG
                   handsFreeRef.current = false;
                   startReceiveMode();
+                } else {
+                  dbg(`SS onend last sentence, handsFree=false`); // DEBUG
                 }
               }
             };
 
-            utt.onerror = () => {
+            utt.onerror = (e) => {
+              dbg(`SS onerror: ${e.error}`); // DEBUG
               if (activeSpeechIdRef.current !== speechId) return;
               activeSpeechIdRef.current = null;
               setIsSpeaking(false);
@@ -663,6 +685,7 @@
               );
             };
 
+            dbg(`SS speak() s${i}: ${stripMd(sentence).slice(0, 30)}`); // DEBUG
             window.speechSynthesis.speak(utt);
           });
         };
@@ -790,7 +813,9 @@
                     u.rate = 10;
                     window.speechSynthesis.speak(u);
                   }
+                  dbg('Overlay tapped, calling startReceiveMode'); // DEBUG
                   setVoiceStarted(true);
+                  dbg('SS warmup utterance fired'); // DEBUG
                   const utterance = new SpeechSynthesisUtterance('');
                   window.speechSynthesis.speak(utterance);
                   if (speechSupported) startReceiveMode();
@@ -894,6 +919,34 @@
                 Send
               </button>
             </footer>
+
+            {/* DEBUG — on-screen console overlay */}
+            <div style={{ // DEBUG
+              position: "fixed", bottom: 0, right: 0, zIndex: 200, // DEBUG
+              display: "flex", flexDirection: "column", alignItems: "flex-end", // DEBUG
+            }}> {/* DEBUG */}
+              <button // DEBUG
+                onClick={() => setDebugOpen(o => !o)} // DEBUG
+                style={{ // DEBUG
+                  background: "#111", color: "#0f0", border: "none", // DEBUG
+                  fontFamily: "monospace", fontSize: "10px", // DEBUG
+                  padding: "3px 8px", cursor: "pointer", opacity: 0.85, // DEBUG
+                }} // DEBUG
+              >{debugOpen ? "▼ DEBUG" : "▲ DEBUG"}</button> {/* DEBUG */}
+              {debugOpen && ( // DEBUG
+                <div style={{ // DEBUG
+                  width: "min(340px, 96vw)", maxHeight: "40vh", overflowY: "auto", // DEBUG
+                  background: "rgba(0,0,0,0.9)", color: "#0f0", // DEBUG
+                  fontFamily: "monospace", fontSize: "11px", // DEBUG
+                  padding: "6px 8px", lineHeight: 1.5, // DEBUG
+                }}> {/* DEBUG */}
+                  {debugLog.length === 0 && <div style={{color:"#666"}}>no events yet</div>} {/* DEBUG */}
+                  {debugLog.map((entry, i) => ( // DEBUG
+                    <div key={i}>{entry}</div> // DEBUG
+                  ))} {/* DEBUG */}
+                </div> // DEBUG
+              )} {/* DEBUG */}
+            </div> {/* DEBUG */}
           </>
         );
       }

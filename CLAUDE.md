@@ -350,6 +350,14 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
 - `user_id_counter` — single-row atomic counter; column is `next_value`
 - RLS disabled on all three tables; anon role granted appropriate permissions
 
+**DEBUG overlay** (temporary, all marked `// DEBUG`):
+- On-screen console panel fixed bottom-right. Toggle button "▲ DEBUG" / "▼ DEBUG".
+  When expanded: last 20 timestamped events in green monospace on black, newest first.
+- Logs: App mount (SR/SS support), overlay tap, SS warmup, startReceiveMode, recognition
+  start/result/error, silence timer, handleSend, response received (voiceMode + synth
+  flags + length), SS speak() per sentence, SS onstart/onend/onerror, catch errors.
+- Remove by deleting all lines marked `// DEBUG` and `{/* DEBUG */}`.
+
 **Next steps**:
 - Continue gathering tester feedback
 - Iterate on system prompt based on conversation quality
