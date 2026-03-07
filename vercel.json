@@ -17,9 +17,9 @@
     }
   ],
   "routes": [
-    { "src": "/manifest.json", "dest": "prototype/public/manifest.json" },
+    { "src": "/manifest.json", "dest": "prototype/server.js" },
     { "src": "/sw.js", "dest": "prototype/server.js" },
-    { "src": "/icons/(.*)", "dest": "prototype/public/icons/$1" },
+    { "src": "/icons/(.*)", "dest": "prototype/server.js" },
     { "src": "/(.*)", "dest": "prototype/server.js" }
   ]
 }

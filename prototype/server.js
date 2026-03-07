@@ -37,6 +37,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.get('/sw.js', (_req, res) => res.sendFile(join(__dirname, 'sw.js')));
+app.get('/manifest.json', (_req, res) => 
+  res.sendFile(join(__dirname, 'public/manifest.json')));
+
+app.use('/icons', express.static(join(__dirname, 'public/icons')));
 app.use(express.static(join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
