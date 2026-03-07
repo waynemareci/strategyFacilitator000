@@ -196,7 +196,7 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
 
 ## Current Development Status
 
-**Active task**: Deploying Phase 0.1 prototype to Vercel for external tester access
+**Active task**: Gathering feedback from testers on Prototype v0.1
 
 **Completed (Phase 0.1 — Feb 22–23 2026)**:
 - Session identity: UUID generated on first visit, stored in `localStorage` under
@@ -212,7 +212,8 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
     if file is missing.
   - `GET /welcome` endpoint — serves the welcome message to the UI (never hardcoded
     in HTML).
-  - `POST /register-name` endpoint — accepts `{sessionId, name}`, calls Supabase RPC
+  - `POST /register-name` endpoint — accepts `{sessionId, rawInput}`, uses Claude
+    Haiku to extract the name from natural language, calls Supabase RPC
     `increment_user_counter()` atomically to assign a sequential number, formats
     identifier as `Name####` (e.g. `Sarah0001`), stores in `users` table.
   - User identifier stored in `localStorage` under `goalapp_user_identifier` and
@@ -222,17 +223,53 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
     skip the name prompt.
 - AI persona: assistant presents itself as "Stef" (per welcome text).
 - App title changed from "Goal Discovery" to "Strategy Facilitator".
+- Vercel deployment: `vercel.json` at project root with `@vercel/node` build,
+  `includeFiles` for HTML and prompts, catch-all route. `server.js` exports app
+  as default and guards `app.listen()` behind `!process.env.VERCEL`.
+- Git repository initialized with `.gitignore` (excludes node_modules, .env,
+  CLAUDE session backup files) and `prototype/.env.example`.
+- `GET /admin/sessions` joins `users` table to display `user_identifier` in the
+  session list instead of raw session UUID. `__START__` messages excluded from
+  message counts.
+- Timestamps pinned to `America/New_York` timezone via `Intl.DateTimeFormat`
+  to prevent UTC display on Vercel servers.
+
+**Completed (Phase 0.1 — Feb 24 2026)**:
+- Auto-focus textarea: cursor automatically placed in text input after each AI
+  response via `useRef` + `useEffect` on `loading` state in `index.html`.
+- Token usage tracking: `input_tokens` and `output_tokens` columns added to
+  `conversation_logs` table. Server stores Anthropic API usage data on every
+  assistant row. `admin.html` transcript view displays token counts (e.g.
+  `1842 in / 214 out`) alongside the timestamp beneath each assistant bubble.
+
+**Completed (Phase 0.1 — Mar 1 2026)**:
+- Responsive CSS / PWA viewport fixes applied to `prototype/index.html` (CSS
+  only; no JS or HTML structure changed):
+  - `viewport-fit=cover` added to meta viewport tag for iPhone notch/home
+    indicator support.
+  - `body` uses `height: 100dvh` (with `100vh` fallback) so layout fills the
+    visual viewport, not the larger layout viewport that includes browser chrome.
+  - `#messages` gains `min-height: 0` (prevents flex child from refusing to
+    shrink when virtual keyboard appears) and `overscroll-behavior: contain`
+    (stops iOS rubber-band scroll bleed-through).
+  - `.message` max-width changed to `min(600px, 88vw)` for narrow phones.
+  - `footer` has `flex-shrink: 0` and safe-area-aware padding via
+    `max(Npx, env(safe-area-inset-*))` for iPhone home indicator clearance.
+  - `textarea` font-size raised to `16px` (prevents iOS auto-zoom on focus);
+    `min-height: 44px` added.
+  - `button` gains `min-height: 44px` / `min-width: 44px` (Apple HIG tap target).
+  - `@media (max-width: 480px)` rule reduces header padding and h1 font size on
+    small phones.
 
 **Supabase tables in use**:
-- `conversation_logs` — all chat turns (session_id, role, content, timestamp_display)
+- `conversation_logs` — all chat turns (session_id, role, content,
+  timestamp_display, input_tokens, output_tokens)
 - `users` — registered user identifiers (user_identifier, display_name, session_id)
-- `user_id_counter` — single-row atomic counter for sequential user numbering
+- `user_id_counter` — single-row atomic counter; column is `next_value`
 - RLS disabled on all three tables; anon role granted appropriate permissions
 
 **Next steps**:
-- Deploy to Vercel
-- Share URL with testers
-- Review conversations via admin.html
+- Continue gathering tester feedback
 - Iterate on system prompt based on conversation quality
 
 ---
