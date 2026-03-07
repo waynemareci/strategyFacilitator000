@@ -261,6 +261,77 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
   - `@media (max-width: 480px)` rule reduces header padding and h1 font size on
     small phones.
 
+**Completed (Phase 0.1 — Mar 2026)**:
+- PWA support added — app is installable on Android and iOS home screens:
+  - `prototype/public/manifest.json` — web app manifest (name, theme color,
+    icon references, display: standalone).
+  - `prototype/sw.js` — service worker: cache-first for app shell assets,
+    network-pass-through for all API routes (`/chat`, `/register-name`,
+    `/welcome`, `/admin`). Cache versioned via `CACHE_VERSION` constant —
+    bump on each deploy to force cache refresh.
+  - `prototype/public/icons/` — full PWA icon set (9 files: 72px through 512px
+    plus apple-touch-icon.png). Icons use dark purple `#0d0d1a` background,
+    cropped from source image to remove original rounded-square frame.
+  - `prototype/index.html` — PWA meta tags added to `<head>` (manifest link,
+    theme-color, apple-mobile-web-app-* tags, apple-touch-icon). SW registration
+    script added before `</body>`, gated to mobile only via userAgent check so
+    desktop users never see install prompts or SW behavior.
+  - `prototype/server.js` — explicit Express routes added for `/manifest.json`,
+    `/sw.js`, and `/icons/*` so Vercel serverless function can serve these files.
+  - `vercel.json` — updated `includeFiles` to bundle `sw.js`, `manifest.json`,
+    and `public/icons/**` with the serverless function. All four PWA routes
+    (`/manifest.json`, `/sw.js`, `/icons/(.*)`, `(.*)`) point to
+    `prototype/server.js` — Express handles all routing, not Vercel's CDN.
+  - Desktop browser experience is unchanged — no install prompt, no SW
+    registration, identical behavior to pre-PWA.
+  - Android Chrome: "Add to Home Screen" available via three-dot menu; app
+    launches full-screen without browser chrome after install.
+  - iOS Safari: install via Share → Add to Home Screen; apple-touch-icon and
+    apple-mobile-web-app-* meta tags provide correct icon and standalone behavior.
+
+**Completed (Phase 0.1 — Mar 7 2026) — Voice features (Steps 3–5)**:
+- **Step 3 — Voice input**: Mic button in footer using `SpeechRecognition` API.
+  Clicking starts a single-utterance listen session; transcript appended to textarea.
+  Button shows red pulse animation while recording. Setting `voiceModeRef = true` so
+  the subsequent send is tagged as a voice turn.
+- **Step 4 — Voice output**: `speakResponse()` function using `SpeechSynthesis` API.
+  Text split into sentences; each spoken sequentially via `SpeechSynthesisUtterance`.
+  Text streams into the message bubble in sync with speech (sentence-by-sentence).
+  `activeSpeechIdRef` guards stale callbacks if speech is cancelled/superseded.
+  Typing in textarea while speaking sets `pendingStopRef = true` — speech stops
+  cleanly after current sentence, full text fills bubble.
+  Voice output only triggered when `wasVoiceMode = true` at send time.
+- **Step 5 — Hands-free loop**: Continuous receive mode with auto-send and auto-resume.
+  `startReceiveMode()` runs continuous `SpeechRecognition`, accumulates transcript in
+  textarea and ref. After 4s of silence with non-empty transcript, auto-sends as a
+  voice turn (`voiceModeRef = true`, `handsFreeRef = true`). After AI speech ends,
+  `handsFreeRef` triggers `startReceiveMode()` again — fully automatic loop.
+  `stopReceiveMode(leaveAccumulated)` — stops recognition, clears silence timer;
+  `leaveAccumulated=true` preserves textarea for manual editing/send.
+  Manual typing exits receive mode cleanly (no auto-resume). Enter/Send while in
+  receive mode treats the turn as hands-free (voice out + resume listening after).
+  Mic button: green pulsing = receive mode active, grey = idle, disabled during loading.
+  Status bar: green dot + "Listening…" during receive; purple dot + "Speaking…" during TTS.
+  `visibilitychange` effect restarts recognition when tab returns to foreground.
+  `recognition.onend` auto-restarts recognition while in receive mode (browser stops
+  continuous recognition after ~60s of silence on some platforms).
+- **Bug fixes during Step 5 implementation**:
+  - Stale closure: `sendMessageRef` ref pattern added so `startReceiveMode`'s silence
+    timer always calls the latest `sendMessage` (with current `synthSupported`, `messages`,
+    `awaitingName` state) rather than a stale first-render version.
+  - Chrome TTS user-gesture requirement: `speechSynthesis.speak()` is blocked until
+    the page receives user activation. Fixed with a "Tap to start voice conversation"
+    purple banner that appears on load; tapping it fires a silent `'a'` utterance
+    (volume=0, rate=10) to unlock TTS for the session, then starts receive mode.
+    Banner disappears and is replaced by the green "Listening…" indicator. The mic
+    button click also does the TTS unlock on first press.
+  - Chrome stuck speech queue: added `activeSpeechIdRef.current = null` +
+    `window.speechSynthesis.cancel()` at the start of every `speakResponse()` call
+    to clear any queued utterances that might block new speech.
+  - Empty utterance queue-blocking: earlier unlock attempts used
+    `SpeechSynthesisUtterance('')` which can get permanently stuck in Chrome's queue.
+    Replaced with `SpeechSynthesisUtterance('a')` with rate=10 (processes in ~50ms).
+
 **Supabase tables in use**:
 - `conversation_logs` — all chat turns (session_id, role, content,
   timestamp_display, input_tokens, output_tokens)
@@ -282,8 +353,12 @@ Strategy Facilitator/
 │   ├── server.js              # Express server, Claude API, Supabase logging
 │   ├── index.html             # Single-page chat UI (React via CDN)
 │   ├── admin.html             # Transcript viewer for developer review
+│   ├── sw.js                  # PWA service worker (cache-first app shell)
 │   ├── package.json
-│   └── .env                   # API keys (gitignored)
+│   ├── .env                   # API keys (gitignored)
+│   └── /public                # Static assets served by Express
+│       ├── manifest.json      # PWA web app manifest
+│       └── /icons             # PWA icon set (9 files, 72px–512px)
 ├── /prompts                   # System prompt files
 │   ├── system-prompt-v1.txt   # Goal discovery system prompt
 │   └── welcome.txt            # Welcome/intro message (source of truth)
@@ -303,6 +378,22 @@ Strategy Facilitator/
 - Currently studying for Series 65 exam (investment advisory) — B2B angle in 
   financial wellness space worth exploring
 - Development environment: Windows 11, VSCode, WSL
+- Vercel deployment pattern: all routes in `vercel.json` point to
+  `prototype/server.js`. Static files (manifest, icons, sw.js) are served
+  via explicit Express routes using `res.sendFile` and `express.static`,
+  not via Vercel's CDN. Files must be listed in `includeFiles` in `vercel.json`
+  to be bundled with the serverless function.
+
+---
+
+## Change Log
+
+> Step 3 complete — Voice input layer added. Mic button in footer wires Web Speech API
+> to textarea. Graceful hide on unsupported browsers. Send logic untouched.
+
+> Step 4 complete — Voice output layer added. App speaks responses for voice-initiated
+> turns via SpeechSynthesis. Text streams sentence-by-sentence in sync with speech.
+> Interrupt on next user action (finishes current sentence). Text-only flow unchanged.
 
 ---
 
