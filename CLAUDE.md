@@ -342,6 +342,12 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
   SpeechSynthesisUtterance(''))` to the overlay tap handler. Fires a silent zero-length
   utterance during the tap gesture, unlocking SpeechSynthesis for the remainder of the
   session. Fixes silent voice output on Android Chrome.
+- **Step 5c — Debug overlay promoted to permanent dev feature**: On-screen console panel
+  fixed bottom-right, gated behind `?debug=true` URL parameter. `const debugMode` added
+  alongside `isTestMode`. `dbg` is a no-op when `!debugMode` (no overhead in production).
+  Debug state (`debugLog`, `debugOpen`) declared unconditionally (React hook rules);
+  overlay JSX wrapped in `{debugMode && (...)}`. All `// DEBUG` and `{/* DEBUG */}`
+  comment markers removed. Access at `/?debug=true` — invisible in normal use.
 
 **Supabase tables in use**:
 - `conversation_logs` — all chat turns (session_id, role, content,
@@ -350,13 +356,18 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
 - `user_id_counter` — single-row atomic counter; column is `next_value`
 - RLS disabled on all three tables; anon role granted appropriate permissions
 
-**DEBUG overlay** (temporary, all marked `// DEBUG`):
-- On-screen console panel fixed bottom-right. Toggle button "▲ DEBUG" / "▼ DEBUG".
-  When expanded: last 20 timestamped events in green monospace on black, newest first.
-- Logs: App mount (SR/SS support), overlay tap, SS warmup, startReceiveMode, recognition
-  start/result/error, silence timer, handleSend, response received (voiceMode + synth
-  flags + length), SS speak() per sentence, SS onstart/onend/onerror, catch errors.
-- Remove by deleting all lines marked `// DEBUG` and `{/* DEBUG */}`.
+- **Step 6 — OpenAI TTS (nova) as primary voice output**: Server-side `POST /api/tts`
+  endpoint accepts `{ text }`, strips markdown via `stripMarkdown()` utility, calls
+  OpenAI TTS API (`tts-1` model, `nova` voice, `mp3` format), and streams the binary
+  audio back. Client `speakWithOpenAI(fullText)` fetches `/api/tts`, plays the returned
+  blob via `new Audio(url)`, sets `isSpeaking` on `onplay`/`onended`, and resumes
+  receive mode (hands-free loop) on `onended` if `handsFreeRef` is set. On any error
+  (non-200 or fetch failure) falls back silently to existing `speakResponse()`.
+  Full response text is now displayed immediately on arrival; audio plays ~1 s later
+  (no more sentence-by-sentence streaming sync). `currentAudioRef` tracks the playing
+  Audio element for immediate interrupt on mic tap or textarea edit. `openai` npm
+  package added; `OPENAI_API_KEY` added to `.env.example`. `stripMarkdown` extracted
+  to server-level utility (shared by TTS endpoint).
 
 **Next steps**:
 - Continue gathering tester feedback

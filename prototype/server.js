@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -45,6 +46,17 @@ app.use(express.static(join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Strip common markdown so TTS reads clean prose
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+}
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -82,6 +94,29 @@ try {
 // GET /welcome — returns the welcome message for display in the UI
 app.get('/welcome', (_req, res) => {
   res.json({ message: WELCOME_MESSAGE });
+});
+
+// POST /api/tts — proxy OpenAI TTS and stream mp3 back to the client
+// Body: { text: string }
+app.post('/api/tts', async (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'text is required' });
+  }
+  try {
+    const response = await openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'nova',
+      input: stripMarkdown(text),
+      response_format: 'mp3',
+    });
+    res.setHeader('Content-Type', 'audio/mpeg');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.send(buffer);
+  } catch (err) {
+    console.error('OpenAI TTS error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Extract a person's name from a natural language string using Claude Haiku.
