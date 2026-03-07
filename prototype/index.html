@@ -791,6 +791,8 @@
                     window.speechSynthesis.speak(u);
                   }
                   setVoiceStarted(true);
+                  const utterance = new SpeechSynthesisUtterance('');
+                  window.speechSynthesis.speak(utterance);
                   if (speechSupported) startReceiveMode();
                 }}
                 style={{

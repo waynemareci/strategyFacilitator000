@@ -338,6 +338,10 @@ adaptive feedback. Web-only. Anonymous sessions. No social features.
   `'a'` utterance. Unsupported browsers: tap dismisses, normal text chat revealed.
   Controlled by `voiceStarted` state — never reappears within a session. Shown on both
   desktop and mobile for consistency; satisfies Android Chrome user-gesture requirement.
+- **Step 5b — SpeechSynthesis gesture unlock**: Added `speechSynthesis.speak(new
+  SpeechSynthesisUtterance(''))` to the overlay tap handler. Fires a silent zero-length
+  utterance during the tap gesture, unlocking SpeechSynthesis for the remainder of the
+  session. Fixes silent voice output on Android Chrome.
 
 **Supabase tables in use**:
 - `conversation_logs` — all chat turns (session_id, role, content,
