@@ -5,6 +5,7 @@
       "src": "prototype/server.js",
       "use": "@vercel/node",
       "config": {
+        "buildCommand": "cd prototype && npm run build",
         "includeFiles": [
           "prototype/index.html",
           "prototype/admin.html",

@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "build": "node -e \"const fs=require('fs');const sw=fs.readFileSync('sw.js','utf8');fs.writeFileSync('sw.js',sw.replace('__BUILD_TIMESTAMP__','v'+Date.now()))\"",
     "dev": "node --watch server.js",
     "test": "cross-env MOCK_MODE=true node --watch server.js"
   },
